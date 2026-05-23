@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TipSplit — Tip Calculator & Bill Splitter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222636;
+      --border: rgba(255,255,255,0.08);
+      --border-focus: rgba(99,179,237,0.6);
+      --text: #f0f2ff;
+      --muted: #8b90a8;
+      --accent: #63b3ed;
+      --accent2: #f6ad55;
+      --success: #68d391;
+      --danger: #fc8181;
+      --card-radius: 20px;
+      --input-radius: 12px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    /* Subtle background pattern */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(99,179,237,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 90%, rgba(246,173,85,0.05) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 860px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .logo span {
+      color: var(--accent);
+      font-style: italic;
+    }
+
+    .tagline {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 0.4rem;
+      font-weight: 300;
+      letter-spacing: 0.04em;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    @media (max-width: 640px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 1.75rem;
+    }
+
+    .card-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+
+    /* Field groups */
+    .field {
+      margin-bottom: 1.4rem;
+    }
+
+    .field:last-child { margin-bottom: 0; }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.5rem;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .error-msg {
+      font-size: 0.78rem;
+      color: var(--danger);
+      opacity: 0;
+      transform: translateY(-2px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+    }
+
+    .error-msg.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .currency-symbol {
+      position: absolute;
+      left: 14px;
+      font-size: 0.95rem;
+      color: var(--muted);
+      pointer-events: none;
+      font-weight: 500;
+    }
+
+    .suffix {
+      position: absolute;
+      right: 14px;
+      font-size: 0.9rem;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: var(--input-radius);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 400;
+      padding: 0.7rem 1rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      -moz-appearance: textfield;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    input.has-prefix { padding-left: 2.2rem; }
+    input.has-suffix { padding-right: 2.4rem; }
+
+    input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(99,179,237,0.12);
+    }
+
+    input.invalid {
+      border-color: rgba(252,129,129,0.6);
+      box-shadow: 0 0 0 3px rgba(252,129,129,0.1);
+    }
+
+    /* Tip presets */
+    .tip-presets {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 0.8rem;
+    }
+
+    .preset-btn {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+      padding: 0.6rem 0;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .preset-btn:hover {
+      border-color: rgba(99,179,237,0.35);
+      color: var(--accent);
+    }
+
+    .preset-btn.active {
+      background: rgba(99,179,237,0.12);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Output card */
+    .output-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .result-row:last-of-type { border-bottom: none; }
+
+    .result-label {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .result-label small {
+      display: block;
+      font-size: 0.72rem;
+      margin-top: 2px;
+      opacity: 0.7;
+    }
+
+    .result-value {
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      transition: all 0.2s;
+    }
+
+    .result-value.highlight {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.9rem;
+      color: var(--accent2);
+    }
+
+    /* Per person section */
+    .per-person-block {
+      margin-top: 1.25rem;
+      background: rgba(99,179,237,0.06);
+      border: 1px solid rgba(99,179,237,0.15);
+      border-radius: 14px;
+      padding: 1.25rem 1.5rem;
+      text-align: center;
+    }
+
+    .per-person-label {
+      font-size: 0.78rem;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+
+    .per-person-value {
+      font-family: 'DM Serif Display', serif;
+      font-size: 3rem;
+      color: var(--text);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      transition: all 0.2s;
+    }
+
+    .per-person-sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+    }
+
+    /* Reset button */
+    .reset-btn {
+      width: 100%;
+      margin-top: 1.5rem;
+      background: transparent;
+      border: 1.5px solid var(--border);
+      border-radius: var(--input-radius);
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.65rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.04em;
+    }
+
+    .reset-btn:hover {
+      border-color: rgba(252,129,129,0.4);
+      color: var(--danger);
+    }
+
+    .reset-btn:active { transform: scale(0.98); }
+
+    /* Rounding note */
+    .rounding-note {
+      margin-top: 1rem;
+      font-size: 0.74rem;
+      color: var(--muted);
+      text-align: center;
+      opacity: 0.7;
+    }
+
+    /* Animate value changes */
+    @keyframes popIn {
+      0% { transform: scale(0.95); opacity: 0.5; }
+      60% { transform: scale(1.03); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .pop { animation: popIn 0.2s ease-out; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">Tip<span>Split</span></div>
+      <p class="tagline">Calculate tips & split bills instantly</p>
+    </header>
+
+    <div class="layout">
+      <!-- Input Card -->
+      <div class="card">
+        <p class="card-title">Bill Details</p>
+
+        <!-- Bill Amount -->
+        <div class="field">
+          <div class="label-row">
+            <label for="bill">Bill Amount</label>
+            <span class="error-msg" id="bill-error">Must be greater than 0</span>
+          </div>
+          <div class="input-wrap">
+            <span class="currency-symbol">Rs</span>
+            <input
+              type="number"
+              id="bill"
+              class="has-prefix"
+              placeholder="0"
+              min="0"
+              step="any"
+              inputmode="decimal"
+              autocomplete="off"
+            />
+          </div>
+        </div>
+
+        <!-- Tip Percentage -->
+        <div class="field">
+          <div class="label-row">
+            <label for="tip-custom">Tip Percentage</label>
+            <span class="error-msg" id="tip-error">Must be 0 or more (max 100)</span>
+          </div>
+          <div class="tip-presets">
+            <button class="preset-btn" data-tip="10" type="button">10%</button>
+            <button class="preset-btn" data-tip="15" type="button">15%</button>
+            <button class="preset-btn" data-tip="20" type="button">20%</button>
+          </div>
+          <div class="input-wrap">
+            <input
+              type="number"
+              id="tip-custom"
+              class="has-suffix"
+              placeholder="Custom %"
+              min="0"
+              max="100"
+              step="any"
+              inputmode="decimal"
+              autocomplete="off"
+            />
+            <span class="suffix">%</span>
+          </div>
+        </div>
+
+        <!-- Number of People -->
+        <div class="field">
+          <div class="label-row">
+            <label for="people">Number of People</label>
+            <span class="error-msg" id="people-error">Must be at least 1</span>
+          </div>
+          <div class="input-wrap">
+            <input
+              type="number"
+              id="people"
+              placeholder="1"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              autocomplete="off"
+              value="1"
+            />
+          </div>
+        </div>
+
+        <button class="reset-btn" id="reset-btn" type="button">↺ Reset</button>
+      </div>
+
+      <!-- Output Card -->
+      <div class="output-card">
+        <p class="card-title">Summary</p>
+
+        <div class="result-row">
+          <div class="result-label">Tip Amount</div>
+          <div class="result-value" id="out-tip">Rs 0</div>
+        </div>
+        <div class="result-row">
+          <div class="result-label">Grand Total<small>Bill + Tip</small></div>
+          <div class="result-value highlight" id="out-total">Rs 0</div>
+        </div>
+
+        <div class="per-person-block">
+          <div class="per-person-label">Per Person</div>
+          <div class="per-person-value" id="out-per-person">Rs 0</div>
+          <div class="per-person-sub" id="out-sub">—</div>
+        </div>
+
+        <p class="rounding-note" id="rounding-note"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const billInput    = document.getElementById('bill');
+    const tipInput     = document.getElementById('tip-custom');
+    const peopleInput  = document.getElementById('people');
+    const presetBtns   = document.querySelectorAll('.preset-btn');
+    const resetBtn     = document.getElementById('reset-btn');
+
+    const outTip       = document.getElementById('out-tip');
+    const outTotal     = document.getElementById('out-total');
+    const outPerPerson = document.getElementById('out-per-person');
+    const outSub       = document.getElementById('out-sub');
+    const roundNote    = document.getElementById('rounding-note');
+
+    const billErr      = document.getElementById('bill-error');
+    const tipErr       = document.getElementById('tip-error');
+    const peopleErr    = document.getElementById('people-error');
+
+    let activePreset = null;
+
+    function fmt(val) {
+      if (val === 0) return 'Rs 0';
+      return 'Rs ' + val.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function animatePop(el) {
+      el.classList.remove('pop');
+      void el.offsetWidth;
+      el.classList.add('pop');
+    }
+
+    function setError(inputEl, errEl, show) {
+      if (show) {
+        inputEl.classList.add('invalid');
+        errEl.classList.add('visible');
+      } else {
+        inputEl.classList.remove('invalid');
+        errEl.classList.remove('visible');
+      }
+    }
+
+    function calculate() {
+      const billRaw   = billInput.value.trim();
+      const tipRaw    = tipInput.value.trim();
+      const peopleRaw = peopleInput.value.trim();
+
+      const bill    = parseFloat(billRaw);
+      const tipPct  = parseFloat(tipRaw);
+      const people  = parseInt(peopleRaw, 10);
+
+      let billValid   = true;
+      let tipValid    = true;
+      let peopleValid = true;
+
+      // Validate bill
+      if (billRaw === '' || isNaN(bill) || bill <= 0) {
+        if (billRaw !== '') setError(billInput, billErr, true);
+        else setError(billInput, billErr, false);
+        billValid = false;
+      } else {
+        setError(billInput, billErr, false);
+      }
+
+      // Validate tip
+      if (tipRaw === '' || isNaN(tipPct) || tipPct < 0 || tipPct > 100) {
+        if (tipRaw !== '') setError(tipInput, tipErr, true);
+        else setError(tipInput, tipErr, false);
+        tipValid = false;
+      } else {
+        setError(tipInput, tipErr, false);
+      }
+
+      // Validate people
+      if (peopleRaw === '' || isNaN(people) || people < 1 || !Number.isInteger(people)) {
+        if (peopleRaw !== '') setError(peopleInput, peopleErr, true);
+        else setError(peopleInput, peopleErr, false);
+        peopleValid = false;
+      } else {
+        setError(peopleInput, peopleErr, false);
+      }
+
+      if (!billValid || !tipValid || !peopleValid) {
+        outTip.textContent       = 'Rs 0';
+        outTotal.textContent     = 'Rs 0';
+        outPerPerson.textContent = 'Rs 0';
+        outSub.textContent       = '—';
+        roundNote.textContent    = '';
+        return;
+      }
+
+      // Calculations
+      const tipAmount    = bill * (tipPct / 100);
+      const grandTotal   = bill + tipAmount;
+      const exactPerPerson = grandTotal / people;
+
+      // Rounding: round each person UP to 2 decimal places,
+      // then adjust the last person so the group never overpays.
+      // This way the group total >= exact total (never underpays).
+      const perPersonRounded = Math.ceil(exactPerPerson * 100) / 100;
+      const groupTotal       = perPersonRounded * people;
+      const lastPersonAmt    = grandTotal - (perPersonRounded * (people - 1));
+      const lastRounded      = Math.ceil(lastPersonAmt * 100) / 100;
+
+      let roundMsg = '';
+      const diff = Math.abs(groupTotal - grandTotal);
+      if (diff > 0.005) {
+        const cents = Math.round(diff * 100);
+        roundMsg = `Last person pays Rs ${lastRounded.toFixed(2)} (${cents} paisa rounding adjustment)`;
+      }
+
+      animatePop(outTip);
+      animatePop(outTotal);
+      animatePop(outPerPerson);
+
+      outTip.textContent       = fmt(tipAmount);
+      outTotal.textContent     = fmt(grandTotal);
+      outPerPerson.textContent = fmt(perPersonRounded);
+      outSub.textContent       = people === 1
+        ? 'Just you — enjoy!'
+        : `${people} people × ${fmt(perPersonRounded)} each`;
+      roundNote.textContent    = roundMsg;
+    }
+
+    // Preset buttons
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        presetBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activePreset = btn.dataset.tip;
+        tipInput.value = btn.dataset.tip;
+        setError(tipInput, tipErr, false);
+        calculate();
+      });
+    });
+
+    // Deactivate preset when custom input is typed
+    tipInput.addEventListener('input', () => {
+      presetBtns.forEach(b => b.classList.remove('active'));
+      activePreset = null;
+      calculate();
+    });
+
+    billInput.addEventListener('input', calculate);
+    peopleInput.addEventListener('input', calculate);
+
+    // Tab / Enter between fields
+    [billInput, tipInput, peopleInput].forEach((el, i, arr) => {
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const next = arr[i + 1];
+          if (next) next.focus();
+        }
+      });
+    });
+
+    // Reset
+    resetBtn.addEventListener('click', () => {
+      billInput.value     = '';
+      tipInput.value      = '';
+      peopleInput.value   = '1';
+      presetBtns.forEach(b => b.classList.remove('active'));
+      activePreset = null;
+      [billInput, tipInput, peopleInput].forEach(el => {
+        el.classList.remove('invalid');
+      });
+      [billErr, tipErr, peopleErr].forEach(e => e.classList.remove('visible'));
+      outTip.textContent       = 'Rs 0';
+      outTotal.textContent     = 'Rs 0';
+      outPerPerson.textContent = 'Rs 0';
+      outSub.textContent       = '—';
+      roundNote.textContent    = '';
+      billInput.focus();
+    });
+
+    // Initial focus
+    billInput.focus();
+  </script>
+</body>
+</html>
